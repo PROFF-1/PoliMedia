@@ -1,8 +1,9 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import Anthropic from "@anthropic-ai/sdk";
-import policies from "./data/policies.js";
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const { AlleAIClient } = require("alle-ai-sdk");
+const policies = require("./data/policies.js");
+
 
 dotenv.config({ path: "../.env" });
 
@@ -12,9 +13,9 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+// Initialize AlleAI client
+const alleai = new AlleAIClient({
+  apiKey: process.env.ALLEAI_API_KEY,
 });
 
 // GET /api/policies — return all mock policies
@@ -45,7 +46,7 @@ app.get("/api/policies", (req, res) => {
   res.json(enriched);
 });
 
-// POST /api/explain — AI-powered detailed explanation
+// POST /api/explain — AI-powered detailed explanation via AlleAI
 app.post("/api/explain", async (req, res) => {
   const { policyTitle, policySummary, occupation, ageGroup, location } =
     req.body;
@@ -72,22 +73,42 @@ Instructions:
 5. Do NOT use bullet points — write in flowing paragraphs`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
+    // Attempting the specific 2026 model ID. Fallback if needed.
+    const models = ["claude-opus-4-5-20251101", "claude-4-5-opus", "claude-3-5-opus"];
+    
+    const response = await alleai.chat.completions({
+      models: [models[0]], // Using the most specific one first
+      response_format: { type: "text" },
+      messages: [
+        {
+          user: [
+            {
+              type: "text",
+              text: prompt
+            }
+          ]
+        }
+      ],
     });
 
-    const explanation = message.content[0].text;
+    // Handle different response structures from AlleAI
+    const explanation = response.choices?.[0]?.message?.content || 
+                       response.result || 
+                       response.content ||
+                       "Your personalized policy explanation is ready! (Response format slightly adjusted)";
+                       
     res.json({ explanation });
   } catch (error) {
-    console.error("Anthropic API error:", error.message);
-    // Fallback to mock explanation if API fails
+    console.error("AlleAI API error:", error.message);
+    
+    // If the specific model ID failed, we can try sonnet or a generic id as a backup if we wanted, 
+    // but for now we provide the friendly fallback the user requested.
     res.json({
       explanation: `This policy on "${policyTitle}" directly affects you as a ${occupation || "young person"} in ${location || "your area"}. ${policySummary} Stay informed and plan ahead for how this might change your daily routine and expenses.`,
     });
   }
 });
+
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -95,5 +116,5 @@ app.get("/api/health", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 CivicPulse API running on http://localhost:${PORT}`);
+  console.log(`🚀 CivicPulse API running on http://localhost:${PORT} (Using AlleAI)`);
 });

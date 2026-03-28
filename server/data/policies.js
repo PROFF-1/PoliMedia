@@ -170,4 +170,4 @@ const policies = [
   },
 ];
 
-export default policies;
+module.exports = policies;
