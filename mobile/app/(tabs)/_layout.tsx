@@ -1,11 +1,17 @@
 import { Tabs } from 'expo-router';
-import { Text, View, StyleSheet } from 'react-native';
-import Colors from '@/constants/Colors';
+import { View, StyleSheet } from 'react-native';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
+function TabIcon({ icon, focused }: { icon: keyof typeof Ionicons.glyphMap; focused: boolean }) {
   return (
     <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-      <Text style={styles.tabEmoji}>{emoji}</Text>
+      <Ionicons
+        name={icon}
+        size={20}
+        color={focused ? Colors.primary : Colors.textSecondary}
+      />
+      {focused ? <View style={styles.tabIndicator} /> : null}
     </View>
   );
 }
@@ -16,17 +22,18 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Colors.civic900,
-          borderTopColor: Colors.glassBorder,
+          backgroundColor: Colors.bg,
+          borderTopColor: Colors.border,
           borderTopWidth: 1,
           height: 70,
           paddingBottom: 10,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: Colors.accentBlue,
-        tabBarInactiveTintColor: Colors.civic500,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textSecondary,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontFamily: Typography.fontFamily,
+          fontSize: 13,
           fontWeight: '600',
         },
       }}
@@ -35,21 +42,21 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Feed',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📰" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon={focused ? 'newspaper' : 'newspaper-outline'} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Explore',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon={focused ? 'search' : 'search-outline'} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon icon={focused ? 'person' : 'person-outline'} focused={focused} />,
         }}
       />
     </Tabs>
@@ -60,14 +67,19 @@ const styles = StyleSheet.create({
   tabIcon: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: Radius.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tabIconFocused: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    backgroundColor: Colors.primaryLight,
   },
-  tabEmoji: {
-    fontSize: 18,
+  tabIndicator: {
+    position: 'absolute',
+    bottom: -Spacing.sm,
+    width: 18,
+    height: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primary,
   },
 });

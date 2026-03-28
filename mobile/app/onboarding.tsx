@@ -10,27 +10,28 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useProfile } from '@/constants/ProfileContext';
-import Colors from '@/constants/Colors';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 const AGE_GROUPS = [
-  { id: '15-17', label: '15–17', emoji: '🎒', desc: 'High School' },
-  { id: '18-24', label: '18–24', emoji: '🎓', desc: 'University / Early Career' },
-  { id: '25-34', label: '25–34', emoji: '💼', desc: 'Young Professional' },
+  { id: '15-17', label: '15–17', icon: 'school-outline', desc: 'High School' },
+  { id: '18-24', label: '18–24', icon: 'book-outline', desc: 'University / Early Career' },
+  { id: '25-34', label: '25–34', icon: 'briefcase-outline', desc: 'Young Professional' },
 ];
 
 const OCCUPATIONS = [
-  { id: 'student', label: 'Student', emoji: '📚' },
-  { id: 'developer', label: 'Developer / Tech', emoji: '💻' },
-  { id: 'trader', label: 'Trader / Business', emoji: '🏪' },
-  { id: 'healthcare', label: 'Healthcare', emoji: '🏥' },
-  { id: 'farmer', label: 'Farmer / Agric', emoji: '🌾' },
+  { id: 'student', label: 'Student', icon: 'library-outline' },
+  { id: 'developer', label: 'Developer / Tech', icon: 'code-slash-outline' },
+  { id: 'trader', label: 'Trader / Business', icon: 'storefront-outline' },
+  { id: 'healthcare', label: 'Healthcare', icon: 'medkit-outline' },
+  { id: 'farmer', label: 'Farmer / Agric', icon: 'leaf-outline' },
 ];
 
 const LOCATIONS = [
-  { id: 'urban', label: 'Urban', emoji: '🏙️', desc: 'City / Town' },
-  { id: 'rural', label: 'Rural', emoji: '🌿', desc: 'Village / Countryside' },
+  { id: 'urban', label: 'Urban', icon: 'business-outline', desc: 'City / Town' },
+  { id: 'rural', label: 'Rural', icon: 'map-outline', desc: 'Village / Countryside' },
 ];
 
 const STEPS = [
@@ -86,12 +87,14 @@ export default function OnboardingScreen() {
         {/* Logo */}
         <Animated.View entering={FadeIn.duration(600)} style={styles.logoContainer}>
           <LinearGradient
-            colors={[Colors.accentBlue, Colors.accentPurple]}
+            colors={[Colors.primary, Colors.primaryDark]}
             style={styles.logoIcon}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.logoEmoji}>⚡</Text>
+            <View style={styles.logoInnerRing}>
+              <MaterialCommunityIcons name="bullhorn" size={18} color={Colors.primaryDark} />
+            </View>
           </LinearGradient>
           <Text style={styles.logoText}>PoliMedia</Text>
           <Text style={styles.logoSubtext}>
@@ -107,8 +110,8 @@ export default function OnboardingScreen() {
                 <LinearGradient
                   colors={
                     i <= step
-                      ? [Colors.accentBlue, Colors.accentPurple]
-                      : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.08)']
+                      ? [Colors.primary, Colors.primaryDark]
+                      : [Colors.surfaceAlt, Colors.surfaceAlt]
                   }
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
@@ -123,7 +126,7 @@ export default function OnboardingScreen() {
         {/* Question */}
         <Animated.View
           key={step}
-          entering={FadeInDown.duration(400).springify()}
+          entering={FadeInDown.duration(200)}
           style={styles.questionContainer}
         >
           <Text style={styles.questionTitle}>{currentStep.title}</Text>
@@ -146,7 +149,13 @@ export default function OnboardingScreen() {
                     onPress={() => handleSelect(option.id)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.optionEmoji}>{option.emoji}</Text>
+                    <View style={styles.optionIconWrap}>
+                      <Ionicons
+                        name={option.icon as keyof typeof Ionicons.glyphMap}
+                        size={18}
+                        color={isSelected ? Colors.primary : Colors.textSecondary}
+                      />
+                    </View>
                     <View style={styles.optionTextContainer}>
                       <Text style={styles.optionLabel}>{option.label}</Text>
                       {'desc' in option && (option as any).desc ? (
@@ -177,121 +186,135 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.civic900,
+    backgroundColor: Colors.bg,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.lg,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   logoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: Radius.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
-  logoEmoji: {
-    fontSize: 24,
+  logoInnerRing: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoText: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: -0.5,
+    fontFamily: Typography.fontFamily,
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    letterSpacing: -0.3,
   },
   logoSubtext: {
-    fontSize: 14,
-    color: Colors.civic400,
-    marginTop: 4,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
   },
   logoHighlight: {
-    color: Colors.white,
+    color: Colors.primary,
     fontWeight: '600',
   },
   progressContainer: {
     width: '100%',
-    marginBottom: 32,
+    marginBottom: Spacing.xxxl,
   },
   progressTrack: {
     flexDirection: 'row',
-    gap: 8,
+    gap: Spacing.sm,
   },
   progressSegment: {
     flex: 1,
     height: 4,
-    borderRadius: 2,
+    borderRadius: Radius.pill,
     overflow: 'hidden',
   },
   progressBar: {
     flex: 1,
-    borderRadius: 2,
+    borderRadius: Radius.pill,
   },
   progressText: {
-    color: Colors.civic500,
-    fontSize: 11,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
     textAlign: 'right',
-    marginTop: 6,
+    marginTop: Spacing.xs,
   },
   questionContainer: {
     width: '100%',
   },
   questionTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: Colors.white,
-    marginBottom: 6,
+    ...Typography.h1,
+    fontFamily: Typography.fontFamily,
+    marginBottom: Spacing.xs,
   },
   questionSubtitle: {
-    fontSize: 14,
-    color: Colors.civic400,
-    marginBottom: 20,
-    lineHeight: 20,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xl,
   },
   optionsContainer: {
-    gap: 10,
+    gap: Spacing.md,
   },
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
+    padding: Spacing.lg,
+    borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glassWhite,
-    gap: 14,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    gap: Spacing.md,
   },
   optionButtonSelected: {
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
   },
-  optionEmoji: {
-    fontSize: 26,
+  optionIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   optionTextContainer: {
     flex: 1,
   },
   optionLabel: {
-    fontSize: 16,
+    fontFamily: Typography.fontFamily,
+    fontSize: 15,
     fontWeight: '600',
-    color: Colors.white,
+    color: Colors.textPrimary,
   },
   optionDesc: {
-    fontSize: 12,
-    color: Colors.civic400,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
     marginTop: 2,
   },
   checkmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.accentBlue,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -301,11 +324,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   skipButton: {
-    marginTop: 32,
+    marginTop: Spacing.xxxl,
     padding: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: Colors.bg,
   },
   skipText: {
-    color: Colors.civic500,
-    fontSize: 13,
+    ...Typography.button,
+    fontFamily: Typography.fontFamily,
+    color: Colors.primary,
   },
 });

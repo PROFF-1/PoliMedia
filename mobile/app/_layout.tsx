@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ProfileProvider, useProfile } from '@/constants/ProfileContext';
 import { PoliciesProvider } from '@/constants/PoliciesContext';
+import Colors from '@/constants/Colors';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -29,11 +30,11 @@ function RootLayoutNav() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0c1220' },
+          contentStyle: { backgroundColor: Colors.bg },
           animation: 'fade',
         }}
       >

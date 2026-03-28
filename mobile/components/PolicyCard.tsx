@@ -1,21 +1,22 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
 import { type PersonalizedPolicy } from '@/constants/policies';
+import { Ionicons } from '@expo/vector-icons';
 
-const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; icon: string }> = {
-  transport: { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)', text: '#f59e0b', icon: '🚗' },
-  finance: { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)', text: '#10b981', icon: '💰' },
-  education: { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.2)', text: '#3b82f6', icon: '📖' },
-  housing: { bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.2)', text: '#8b5cf6', icon: '🏠' },
-  health: { bg: 'rgba(236,72,153,0.1)', border: 'rgba(236,72,153,0.2)', text: '#ec4899', icon: '💊' },
-  technology: { bg: 'rgba(6,182,212,0.1)', border: 'rgba(6,182,212,0.2)', text: '#06b6d4', icon: '📱' },
+const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  transport: { bg: Colors.warning + '20', border: Colors.border, text: Colors.textPrimary, icon: 'car-outline' },
+  finance: { bg: Colors.success + '20', border: Colors.border, text: Colors.textPrimary, icon: 'cash-outline' },
+  education: { bg: Colors.primaryLight, border: Colors.border, text: Colors.primary, icon: 'book-outline' },
+  housing: { bg: Colors.surfaceAlt, border: Colors.border, text: Colors.textPrimary, icon: 'home-outline' },
+  health: { bg: Colors.error + '20', border: Colors.border, text: Colors.textPrimary, icon: 'medkit-outline' },
+  technology: { bg: Colors.primaryLight, border: Colors.border, text: Colors.primary, icon: 'hardware-chip-outline' },
 };
 
-const TAG_COLORS: Record<string, { icon: string; color: string }> = {
-  up: { icon: '↑', color: '#ef4444' },
-  down: { icon: '↓', color: '#10b981' },
-  neutral: { icon: '→', color: '#f59e0b' },
+const TAG_COLORS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+  up: { icon: 'arrow-up', color: Colors.error },
+  down: { icon: 'arrow-down', color: Colors.success },
+  neutral: { icon: 'remove', color: Colors.warning },
 };
 
 interface PolicyCardProps {
@@ -50,7 +51,7 @@ export default function PolicyCard({ policy, onPress }: PolicyCardProps) {
             { backgroundColor: category.bg, borderColor: category.border },
           ]}
         >
-          <Text style={styles.categoryIcon}>{category.icon}</Text>
+          <Ionicons name={category.icon} size={12} color={category.text} />
           <Text style={[styles.categoryText, { color: category.text }]}>
             {policy.category.charAt(0).toUpperCase() + policy.category.slice(1)}
           </Text>
@@ -67,7 +68,7 @@ export default function PolicyCard({ policy, onPress }: PolicyCardProps) {
       {/* Personal Impact */}
       {policy.personalImpact ? (
         <View style={styles.impactBanner}>
-          <Text style={styles.impactIcon}>👤</Text>
+          <Ionicons name="person-outline" size={14} color={Colors.primary} style={styles.impactIcon} />
           <View style={styles.impactContent}>
             <Text style={styles.impactLabel}>How this affects you</Text>
             <Text style={styles.impactText}>{policy.personalImpact}</Text>
@@ -88,9 +89,10 @@ export default function PolicyCard({ policy, onPress }: PolicyCardProps) {
                   { backgroundColor: `${dir.color}18` },
                 ]}
               >
-                <Text style={[styles.tagText, { color: dir.color }]}>
-                  {tag.label} {dir.icon}
-                </Text>
+                <View style={styles.tagRow}>
+                  <Text style={[styles.tagText, { color: dir.color }]}>{tag.label}</Text>
+                  <Ionicons name={dir.icon} size={12} color={dir.color} />
+                </View>
               </View>
             );
           })}
@@ -103,80 +105,82 @@ export default function PolicyCard({ policy, onPress }: PolicyCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.glassWhite,
-    padding: 16,
+    borderColor: Colors.border,
+    backgroundColor: Colors.bg,
+    padding: Spacing.lg,
     marginBottom: 2,
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: Radius.pill,
     borderWidth: 1,
   },
-  categoryIcon: {
-    fontSize: 11,
-  },
   categoryText: {
-    fontSize: 11,
+    fontFamily: Typography.fontFamily,
+    fontSize: 12,
     fontWeight: '600',
   },
   date: {
-    fontSize: 11,
-    color: Colors.civic500,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
   },
   title: {
-    fontSize: 18,
+    ...Typography.h2,
+    fontFamily: Typography.fontFamily,
     fontWeight: '700',
-    color: Colors.white,
-    marginBottom: 6,
-    lineHeight: 24,
+    marginBottom: Spacing.xs,
   },
   summary: {
-    fontSize: 13,
-    color: Colors.civic400,
-    lineHeight: 19,
-    marginBottom: 12,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
   },
   impactBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: 'rgba(59,130,246,0.07)',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight,
     borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.12)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   impactIcon: {
-    fontSize: 14,
     marginTop: 1,
   },
   impactContent: {
     flex: 1,
   },
   impactLabel: {
-    fontSize: 11,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
     fontWeight: '700',
-    color: Colors.accentBlue,
+    color: Colors.primary,
     marginBottom: 3,
   },
   impactText: {
-    fontSize: 13,
-    color: Colors.civic300,
-    lineHeight: 18,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textPrimary,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -192,15 +196,22 @@ const styles = StyleSheet.create({
   tag: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: Radius.pill,
   },
   tagText: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontFamily: Typography.fontFamily,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   readMore: {
-    fontSize: 11,
-    color: Colors.civic500,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textLink,
     marginLeft: 8,
   },
 });

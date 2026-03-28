@@ -10,25 +10,40 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useProfile } from '@/constants/ProfileContext';
-import Colors from '@/constants/Colors';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 
 const OCCUPATION_LABELS: Record<string, string> = {
-  student: '📚 Student',
-  developer: '💻 Developer / Tech',
-  trader: '🏪 Trader / Business',
-  healthcare: '🏥 Healthcare',
-  farmer: '🌾 Farmer / Agric',
+  student: 'Student',
+  developer: 'Developer / Tech',
+  trader: 'Trader / Business',
+  healthcare: 'Healthcare',
+  farmer: 'Farmer / Agric',
 };
 
 const AGE_LABELS: Record<string, string> = {
-  '15-17': '🎒 15–17 (High School)',
-  '18-24': '🎓 18–24 (University / Early Career)',
-  '25-34': '💼 25–34 (Young Professional)',
+  '15-17': '15–17 (High School)',
+  '18-24': '18–24 (University / Early Career)',
+  '25-34': '25–34 (Young Professional)',
 };
 
 const LOCATION_LABELS: Record<string, string> = {
-  urban: '🏙️ Urban',
-  rural: '🌿 Rural',
+  urban: 'Urban',
+  rural: 'Rural',
+};
+
+const FIELD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'Age Group': 'calendar-outline',
+  Occupation: 'briefcase-outline',
+  Location: 'location-outline',
+};
+
+const AVATAR_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  student: 'school-outline',
+  developer: 'code-slash-outline',
+  trader: 'storefront-outline',
+  healthcare: 'medkit-outline',
+  farmer: 'leaf-outline',
 };
 
 export default function ProfileScreen() {
@@ -59,29 +74,23 @@ export default function ProfileScreen() {
         {/* Profile Card */}
         <Animated.View entering={FadeInDown.delay(200).duration(500)}>
           <LinearGradient
-            colors={['rgba(59,130,246,0.08)', 'rgba(139,92,246,0.08)']}
+            colors={[Colors.primaryLight, Colors.surface]}
             style={styles.profileCard}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.avatarContainer}>
               <LinearGradient
-                colors={[Colors.accentBlue, Colors.accentPurple]}
+                colors={[Colors.primary, Colors.primaryDark]}
                 style={styles.avatar}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.avatarText}>
-                  {profile.occupation === 'student'
-                    ? '🎓'
-                    : profile.occupation === 'developer'
-                    ? '💻'
-                    : profile.occupation === 'trader'
-                    ? '🏪'
-                    : profile.occupation === 'healthcare'
-                    ? '🏥'
-                    : '🌾'}
-                </Text>
+                <Ionicons
+                  name={AVATAR_ICONS[profile.occupation] || 'person-outline'}
+                  size={30}
+                  color={Colors.white}
+                />
               </LinearGradient>
             </View>
 
@@ -107,7 +116,7 @@ export default function ProfileScreen() {
           entering={FadeInDown.delay(400).duration(500)}
           style={styles.infoCard}
         >
-          <Text style={styles.infoEmoji}>🧠</Text>
+          <Ionicons name="shield-checkmark-outline" size={20} color={Colors.primary} style={styles.infoIcon} />
           <Text style={styles.infoText}>
             PoliMedia uses your profile to show how each policy specifically
             affects someone like you. No data leaves your device.
@@ -121,7 +130,10 @@ export default function ProfileScreen() {
             style={styles.resetButton}
             activeOpacity={0.7}
           >
-            <Text style={styles.resetButtonText}>🔄 Change My Profile</Text>
+            <View style={styles.resetButtonContent}>
+              <Ionicons name="refresh-outline" size={16} color={Colors.white} />
+              <Text style={styles.resetButtonText}>Change My Profile</Text>
+            </View>
           </TouchableOpacity>
         </Animated.View>
 
@@ -133,9 +145,14 @@ export default function ProfileScreen() {
 }
 
 function ProfileField({ label, value }: { label: string; value: string }) {
+  const iconName = FIELD_ICONS[label] || 'ellipse-outline';
+
   return (
     <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldHeader}>
+        <Ionicons name={iconName} size={14} color={Colors.textSecondary} />
+        <Text style={styles.fieldLabel}>{label}</Text>
+      </View>
       <Text style={styles.fieldValue}>{value}</Text>
     </View>
   );
@@ -144,103 +161,109 @@ function ProfileField({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.civic900,
+    backgroundColor: Colors.bg,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: -0.3,
+    ...Typography.h1,
+    fontFamily: Typography.fontFamily,
   },
   headerSubtitle: {
-    color: Colors.civic500,
-    fontSize: 13,
-    marginTop: 2,
-    marginBottom: 24,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xxl,
   },
   profileCard: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: Radius.card,
+    padding: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    marginBottom: 16,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   avatar: {
     width: 72,
     height: 72,
-    borderRadius: 22,
+    borderRadius: Radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: {
-    fontSize: 36,
-  },
   profileFields: {
-    gap: 16,
+    gap: Spacing.lg,
   },
   fieldContainer: {
     gap: 3,
   },
+  fieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
   fieldLabel: {
-    fontSize: 11,
+    fontFamily: Typography.fontFamily,
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.civic500,
+    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   fieldValue: {
-    fontSize: 16,
-    color: Colors.white,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textPrimary,
     fontWeight: '500',
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: Colors.glassWhite,
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    marginBottom: 24,
+    borderColor: Colors.border,
+    marginBottom: Spacing.xxl,
   },
-  infoEmoji: {
-    fontSize: 20,
+  infoIcon: {
     marginTop: 2,
   },
   infoText: {
     flex: 1,
-    color: Colors.civic400,
-    fontSize: 13,
-    lineHeight: 19,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
   },
   resetButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: Colors.error,
+    borderWidth: 1.5,
+    borderColor: Colors.error,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
+  resetButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   resetButtonText: {
-    color: Colors.accentRed,
-    fontSize: 14,
-    fontWeight: '600',
+    ...Typography.button,
+    fontFamily: Typography.fontFamily,
+    color: Colors.white,
   },
   version: {
-    color: Colors.civic600,
-    fontSize: 11,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
     textAlign: 'center',
     marginTop: 'auto',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
 });

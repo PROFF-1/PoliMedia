@@ -13,7 +13,8 @@ import { useRouter } from 'expo-router';
 import { useProfile } from '@/constants/ProfileContext';
 import { getPersonalizedPolicies, type PersonalizedPolicy } from '@/constants/policies';
 import PolicyCard from '@/components/PolicyCard';
-import Colors from '@/constants/Colors';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ExploreScreen() {
   const { profile } = useProfile();
@@ -52,17 +53,17 @@ export default function ExploreScreen() {
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search-outline" size={16} color={Colors.textSecondary} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search policies..."
-          placeholderTextColor={Colors.civic500}
+          placeholderTextColor={Colors.textSecondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Text style={styles.clearButton}>✕</Text>
+            <Ionicons name="close" size={16} color={Colors.textSecondary} style={styles.clearButton} />
           </TouchableOpacity>
         )}
       </View>
@@ -95,60 +96,57 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.civic900,
+    backgroundColor: Colors.bg,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.headerGlass,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: -0.3,
+    ...Typography.h1,
+    fontFamily: Typography.fontFamily,
   },
   headerSubtitle: {
-    color: Colors.civic500,
-    fontSize: 13,
-    marginTop: 2,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    marginTop: Spacing.xs,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 12,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: Colors.glassWhite,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.input,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    gap: 8,
-  },
-  searchIcon: {
-    fontSize: 16,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
   },
   searchInput: {
     flex: 1,
-    color: Colors.white,
-    fontSize: 15,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
   },
   clearButton: {
-    color: Colors.civic400,
-    fontSize: 16,
-    padding: 4,
+    padding: Spacing.xs,
   },
   resultCount: {
-    color: Colors.civic500,
-    fontSize: 12,
-    marginBottom: 4,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    marginBottom: Spacing.xs,
   },
   feed: {
     flex: 1,
   },
   feedContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
   },
 });
