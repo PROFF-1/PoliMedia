@@ -21,7 +21,7 @@ const ProfileContext = React.createContext<ProfileContextType>({
   isLoading: true,
 });
 
-const STORAGE_KEY = 'civicpulse_profile';
+const STORAGE_KEY = 'polimedia_profile';
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfileState] = React.useState<UserProfile | null>(null);

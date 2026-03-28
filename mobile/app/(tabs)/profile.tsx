@@ -109,7 +109,7 @@ export default function ProfileScreen() {
         >
           <Text style={styles.infoEmoji}>🧠</Text>
           <Text style={styles.infoText}>
-            CivicPulse uses your profile to show how each policy specifically
+            PoliMedia uses your profile to show how each policy specifically
             affects someone like you. No data leaves your device.
           </Text>
         </Animated.View>
@@ -126,7 +126,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Version */}
-        <Text style={styles.version}>CivicPulse v1.0.0 — Hackathon MVP</Text>
+        <Text style={styles.version}>PoliMedia v1.0.0 — Hackathon MVP</Text>
       </Animated.View>
     </SafeAreaView>
   );

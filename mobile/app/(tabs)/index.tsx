@@ -12,7 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useProfile } from '@/constants/ProfileContext';
-import { getPersonalizedPolicies, type PersonalizedPolicy } from '@/constants/policies';
+import { usePolicies } from '@/constants/PoliciesContext';
+import type { PersonalizedPolicy } from '@/constants/policies';
 import PolicyCard from '@/components/PolicyCard';
 import Colors from '@/constants/Colors';
 
@@ -30,12 +31,9 @@ export default function FeedScreen() {
   const { profile } = useProfile();
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
+  
+  const { policies, loading, refreshPolicies } = usePolicies();
   const [refreshing, setRefreshing] = useState(false);
-
-  const policies = useMemo(() => {
-    if (!profile) return [];
-    return getPersonalizedPolicies(profile.occupation, profile.location);
-  }, [profile]);
 
   const filteredPolicies = useMemo(() => {
     if (activeFilter === 'all') return policies;
@@ -49,9 +47,10 @@ export default function FeedScreen() {
     return 'Good evening';
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    await refreshPolicies();
+    setRefreshing(false);
   };
 
   const handlePolicyPress = (policy: PersonalizedPolicy) => {
@@ -134,7 +133,12 @@ export default function FeedScreen() {
           />
         }
       >
-        {filteredPolicies.length === 0 ? (
+        {loading && !refreshing ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>⏳</Text>
+            <Text style={styles.emptyText}>Loading latest policies...</Text>
+          </View>
+        ) : filteredPolicies.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>📭</Text>
             <Text style={styles.emptyText}>No policies in this category yet</Text>

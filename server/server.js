@@ -55,54 +55,53 @@ app.post("/api/explain", async (req, res) => {
     return res.status(400).json({ error: "Missing policy data" });
   }
 
-  const prompt = `You are a civic educator for young people in Ghana. Explain the following government policy in simple, relatable terms.
+  const systemPrompt = `You are a civic educator for young people in Ghana. Explain government policies in simple, relatable, conversational terms — like talking to a friend. Keep it under 120 words. Write in flowing paragraphs, no bullet points.`;
+
+  const userPrompt = `Explain this policy to a ${ageGroup || "18-25"} year old ${occupation || "student"} living in ${location || "urban"} Ghana.
 
 Policy: ${policyTitle}
 Summary: ${policySummary}
 
-User Profile:
-- Age Group: ${ageGroup || "18-25"}
-- Occupation: ${occupation || "student"}
-- Location: ${location || "urban"}
+Focus on: what it means in plain language, and how it specifically affects someone in their situation.`;
 
-Instructions:
-1. Explain what this policy means in 2-3 sentences using everyday language
-2. Explain specifically how it affects someone who is a ${occupation || "student"} in ${location || "urban"} Ghana
-3. Use a conversational, friendly tone — like explaining to a friend
-4. Keep the total response under 150 words
-5. Do NOT use bullet points — write in flowing paragraphs`;
 
   try {
-    // Attempting the specific 2026 model ID. Fallback if needed.
-    const models = ["claude-opus-4-5-20251101", "claude-4-5-opus", "claude-3-5-opus"];
-    
+    const MODEL = "gpt-4o";
+
     const response = await alleai.chat.completions({
-      models: [models[0]], // Using the most specific one first
-      response_format: { type: "text" },
+      models: [MODEL],
       messages: [
         {
-          user: [
-            {
-              type: "text",
-              text: prompt
-            }
-          ]
+          system: [{
+            type: "text",
+            text: systemPrompt
+          }]
+        },
+        {
+          user: [{
+            type: "text",
+            text: userPrompt
+          }]
         }
       ],
+      max_tokens: 300,
+      temperature: 0.7,
+      stream: false
     });
 
-    // Handle different response structures from AlleAI
-    const explanation = response.choices?.[0]?.message?.content || 
-                       response.result || 
-                       response.content ||
-                       "Your personalized policy explanation is ready! (Response format slightly adjusted)";
-                       
+    // AlleAI response shape: response.responses.choices[0].message.content
+    const explanation =
+      response.responses?.choices?.[0]?.message?.content ||
+      response.responses?.choices?.[0]?.text ||
+      null;
+
+    if (!explanation) {
+      throw new Error("Empty explanation from AlleAI");
+    }
+
     res.json({ explanation });
   } catch (error) {
     console.error("AlleAI API error:", error.message);
-    
-    // If the specific model ID failed, we can try sonnet or a generic id as a backup if we wanted, 
-    // but for now we provide the friendly fallback the user requested.
     res.json({
       explanation: `This policy on "${policyTitle}" directly affects you as a ${occupation || "young person"} in ${location || "your area"}. ${policySummary} Stay informed and plan ahead for how this might change your daily routine and expenses.`,
     });

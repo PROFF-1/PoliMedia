@@ -149,8 +149,8 @@ export default function OnboardingScreen() {
                     <Text style={styles.optionEmoji}>{option.emoji}</Text>
                     <View style={styles.optionTextContainer}>
                       <Text style={styles.optionLabel}>{option.label}</Text>
-                      {'desc' in option && option.desc ? (
-                        <Text style={styles.optionDesc}>{option.desc}</Text>
+                      {'desc' in option && (option as any).desc ? (
+                        <Text style={styles.optionDesc}>{String((option as any).desc)}</Text>
                       ) : null}
                     </View>
                     {isSelected && (

@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ProfileProvider, useProfile } from '@/constants/ProfileContext';
+import { PoliciesProvider } from '@/constants/PoliciesContext';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -69,7 +70,9 @@ export default function RootLayout() {
 
   return (
     <ProfileProvider>
-      <RootLayoutNav />
+      <PoliciesProvider>
+        <RootLayoutNav />
+      </PoliciesProvider>
     </ProfileProvider>
   );
 }

@@ -1,4 +1,4 @@
-// CivicPulse Design Tokens
+// PoliMedia Design Tokens
 export default {
   // Core palette
   civic900: '#0c1220',

@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useProfile } from '@/constants/ProfileContext';
-import { getPersonalizedPolicies } from '@/constants/policies';
+import { usePolicies } from '@/constants/PoliciesContext';
 import Colors from '@/constants/Colors';
 import { API_BASE_URL } from '@/constants/API';
 
@@ -24,16 +24,15 @@ const TAG_COLORS: Record<string, { icon: string; color: string }> = {
 export default function PolicyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useProfile();
+  const { policies, loading: policiesLoading } = usePolicies();
   const router = useRouter();
   
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const policy = useMemo(() => {
-    if (!profile) return null;
-    const policies = getPersonalizedPolicies(profile.occupation, profile.location);
     return policies.find((p) => p.id.toString() === id) || null;
-  }, [id, profile]);
+  }, [id, policies]);
 
   const fetchAIExplanation = async () => {
     if (loading || !policy) return;
@@ -60,6 +59,17 @@ export default function PolicyDetailScreen() {
       setLoading(false);
     }
   };
+
+  if (policiesLoading && !policy) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorEmoji}>⏳</Text>
+          <Text style={styles.errorText}>Loading policy...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!policy) {
     return (
