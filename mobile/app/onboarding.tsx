@@ -93,7 +93,7 @@ export default function OnboardingScreen() {
           >
             <Text style={styles.logoEmoji}>⚡</Text>
           </LinearGradient>
-          <Text style={styles.logoText}>CivicPulse</Text>
+          <Text style={styles.logoText}>PoliMedia</Text>
           <Text style={styles.logoSubtext}>
             Policies that matter to <Text style={styles.logoHighlight}>you</Text>
           </Text>

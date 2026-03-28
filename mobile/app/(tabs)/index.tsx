@@ -75,7 +75,7 @@ export default function FeedScreen() {
             >
               <Text style={{ fontSize: 14 }}>⚡</Text>
             </LinearGradient>
-            <Text style={styles.headerTitle}>CivicPulse</Text>
+            <Text style={styles.headerTitle}>PoliMedia</Text>
           </View>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/profile')}

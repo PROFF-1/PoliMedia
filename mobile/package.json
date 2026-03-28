@@ -9,9 +9,10 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/ngrok": "^4.1.0",
     "@react-native-async-storage/async-storage": "^3.0.2",
     "@react-navigation/native": "^7.1.33",
-    "expo": "55.0.10-canary-20260328-2049187",
+    "expo": "^55.0.10-canary-20260328-2049187",
     "expo-constants": "55.0.10-canary-20260328-2049187",
     "expo-font": "55.0.5-canary-20260328-2049187",
     "expo-linear-gradient": "55.0.10-canary-20260328-2049187",

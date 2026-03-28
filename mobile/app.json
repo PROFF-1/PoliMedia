@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CivicPulse",
-    "slug": "civicpulse",
+    "name": "PoliMedia",
+    "slug": "polimedia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "civicpulse",
+    "scheme": "polimedia",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/splash-icon.png",
