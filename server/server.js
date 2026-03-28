@@ -2,8 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { AlleAIClient } = require("alle-ai-sdk");
+const { runIngestion } = require("./ingestor.js");
 const policies = require("./data/policies.js");
-
 
 dotenv.config({ path: "../.env" });
 
@@ -13,20 +13,26 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
+// In-memory storage for dynamically ingested policies
+let ingestedPolicies = [];
+
 // Initialize AlleAI client
 const alleai = new AlleAIClient({
   apiKey: process.env.ALLEAI_API_KEY,
 });
 
-// GET /api/policies — return all mock policies
+// GET /api/policies — return all policies (Mock + Ingested)
 app.get("/api/policies", (req, res) => {
   const { occupation, location } = req.query;
 
-  const enriched = policies.map((policy) => {
+  // Combine static mock data with any newly ingested live news
+  const allData = [...policies, ...ingestedPolicies];
+
+  const enriched = allData.map((policy) => {
     const personalImpact =
       policy.impacts[occupation] || policy.impacts.default;
     const locationImpact =
-      policy.impactsByLocation[location] || "";
+      policy.impactsByLocation?.[location] || "";
 
     return {
       id: policy.id,
@@ -35,7 +41,7 @@ app.get("/api/policies", (req, res) => {
       category: policy.category,
       tags: policy.tags,
       source: policy.source,
-      sourceName: policy.sourceName,
+      sourceName: policy.sourceName || "Gov Source",
       date: policy.date,
       personalImpact,
       locationImpact,
@@ -43,7 +49,34 @@ app.get("/api/policies", (req, res) => {
     };
   });
 
+  // Sort by date descending
+  enriched.sort((a, b) => new Date(b.date) - new Date(a.date));
+
   res.json(enriched);
+});
+
+// POST /api/ingest — Trigger automated scraping & AI harmonization
+app.post("/api/ingest", async (req, res) => {
+  console.log("🚀 Starting manual ingestion...");
+  try {
+    const newPolicies = await runIngestion();
+    
+    // Simple deduplication (by title)
+    const uniqueNew = newPolicies.filter(np => 
+      !ingestedPolicies.some(ip => ip.title === np.title)
+    );
+    
+    ingestedPolicies = [...uniqueNew, ...ingestedPolicies];
+    
+    res.json({ 
+      success: true, 
+      added: uniqueNew.length, 
+      totalIngested: ingestedPolicies.length 
+    });
+  } catch (error) {
+    console.error("Ingestion endpoint error:", error.message);
+    res.status(500).json({ success: false, error: "Automated ingestion failed." });
+  }
 });
 
 // POST /api/explain — AI-powered detailed explanation via AlleAI
@@ -100,15 +133,11 @@ Instructions:
     res.json({ explanation });
   } catch (error) {
     console.error("AlleAI API error:", error.message);
-    
-    // If the specific model ID failed, we can try sonnet or a generic id as a backup if we wanted, 
-    // but for now we provide the friendly fallback the user requested.
     res.json({
       explanation: `This policy on "${policyTitle}" directly affects you as a ${occupation || "young person"} in ${location || "your area"}. ${policySummary} Stay informed and plan ahead for how this might change your daily routine and expenses.`,
     });
   }
 });
-
 
 // Health check
 app.get("/api/health", (req, res) => {
