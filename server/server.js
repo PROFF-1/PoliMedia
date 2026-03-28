@@ -2,8 +2,10 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { AlleAIClient } = require("alle-ai-sdk");
+const cron = require("node-cron");
 const { runIngestion } = require("./ingestor.js");
-const policies = require("./data/policies.js");
+const { savePolicy, saveArticle, getAllPolicies, getAllArticles } = require("./database.js");
+const initialMockData = require("./data/policies.js");
 
 dotenv.config({ path: "../.env" });
 
@@ -13,69 +15,114 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage for dynamically ingested policies
-let ingestedPolicies = [];
-
 // Initialize AlleAI client
 const alleai = new AlleAIClient({
   apiKey: process.env.ALLEAI_API_KEY,
 });
 
-// GET /api/policies — return all policies (Mock + Ingested)
+/**
+ * SEED DATABASE: Ensure mock data exists in SQLite on startup
+ */
+function seedDatabase() {
+  const existing = getAllPolicies();
+  if (existing.length === 0) {
+    console.log("🌱 Database is empty. Seeding with mock data...");
+    initialMockData.forEach(p => savePolicy(p));
+    console.log("✅ Seeding complete.");
+  }
+}
+seedDatabase();
+
+// GET /api/explore — Return ALL aggregated news entries
+app.get("/api/explore", (req, res) => {
+  const articles = getAllArticles();
+  res.json(articles);
+});
+
+// GET /api/policies — Return personalized/filtered High-Impact policies
 app.get("/api/policies", (req, res) => {
   const { occupation, location } = req.query;
 
-  // Combine static mock data with any newly ingested live news
-  const allData = [...policies, ...ingestedPolicies];
+  const dbPolicies = getAllPolicies();
 
-  const enriched = allData.map((policy) => {
-    const personalImpact =
-      policy.impacts[occupation] || policy.impacts.default;
-    const locationImpact =
-      policy.impactsByLocation?.[location] || "";
+  let enriched = dbPolicies.map((policy) => {
+    const impacts = typeof policy.impacts === "string" ? JSON.parse(policy.impacts) : policy.impacts;
+    const relevance = typeof policy.relevance === "string" ? JSON.parse(policy.relevance) : policy.relevance;
+    
+    const personalImpact = impacts[occupation] || impacts.default;
+    const roleRelevance = relevance[occupation] || relevance.default || 2;
 
     return {
-      id: policy.id,
-      title: policy.title,
-      summary: policy.summary,
-      category: policy.category,
-      tags: policy.tags,
-      source: policy.source,
-      sourceName: policy.sourceName || "Gov Source",
-      date: policy.date,
+      ...policy,
       personalImpact,
-      locationImpact,
-      deepExplanation: policy.deepExplanation,
+      roleRelevance
     };
   });
 
-  // Sort by date descending
-  enriched.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Filter: If occupation is specified, only show things with some relevance (>1)
+  if (occupation) {
+    enriched = enriched.filter(p => p.roleRelevance > 1);
+  }
+
+  // Sort: By Relevance first, then Date
+  enriched.sort((a, b) => {
+     if (b.roleRelevance !== a.roleRelevance) {
+       return b.roleRelevance - a.roleRelevance;
+     }
+     return new Date(b.date) - new Date(a.date);
+  });
 
   res.json(enriched);
 });
 
-// POST /api/ingest — Trigger automated scraping & AI harmonization
+// POST /api/ingest — Trigger automated scraping & AI distribution
 app.post("/api/ingest", async (req, res) => {
-  console.log("🚀 Starting manual ingestion...");
+  console.log("🚀 Starting manual ingestion (Two-Tier)...");
   try {
-    const newPolicies = await runIngestion();
+    const processedItems = await runIngestion();
     
-    // Simple deduplication (by title)
-    const uniqueNew = newPolicies.filter(np => 
-      !ingestedPolicies.some(ip => ip.title === np.title)
-    );
-    
-    ingestedPolicies = [...uniqueNew, ...ingestedPolicies];
+    let articleCount = 0;
+    let policyCount = 0;
+
+    for (const item of processedItems) {
+      // 1. Always save to Explore (Articles)
+      const aSaved = saveArticle({
+        id: item.id,
+        title: item.title,
+        summary: item.generalSummary,
+        source: item.source,
+        sourceName: item.sourceName,
+        date: item.date
+      });
+      if (aSaved) articleCount++;
+
+      // 2. Save to Policies if classified as high-impact
+      if (item.isPolicy && item.policyData) {
+        const pSaved = savePolicy({
+          ...item.policyData,
+          id: item.id,
+          source: item.source,
+          sourceName: item.sourceName,
+          date: item.date
+        });
+        if (pSaved) policyCount++;
+      }
+    }
     
     res.json({ 
       success: true, 
-      added: uniqueNew.length, 
-      totalIngested: ingestedPolicies.length 
+      ingested: {
+        articles: articleCount,
+        policies: policyCount
+      },
+      total: {
+        explore: getAllArticles().length,
+        home: getAllPolicies().length
+      }
     });
   } catch (error) {
     console.error("Ingestion endpoint error:", error.message);
-    res.status(500).json({ success: false, error: "Automated ingestion failed." });
+    res.status(500).json({ success: false, error: "Ingestion failed." });
   }
 });
 
@@ -88,29 +135,25 @@ app.post("/api/explain", async (req, res) => {
     return res.status(400).json({ error: "Missing policy data" });
   }
 
-  const prompt = `You are a civic educator for young people in Ghana. Explain the following government policy in simple, relatable terms.
+  const prompt = `You are a "Civic Mentor" for young people in Ghana. Explain this policy as if you were encouraging a friend to stay informed and active in their community.
 
 Policy: ${policyTitle}
 Summary: ${policySummary}
 
 User Profile:
-- Age Group: ${ageGroup || "18-25"}
-- Occupation: ${occupation || "student"}
-- Location: ${location || "urban"}
+- Persona: ${occupation || "young person"}
+- Location: ${location || "Ghana"}
 
 Instructions:
-1. Explain what this policy means in 2-3 sentences using everyday language
-2. Explain specifically how it affects someone who is a ${occupation || "student"} in ${location || "urban"} Ghana
-3. Use a conversational, friendly tone — like explaining to a friend
-4. Keep the total response under 150 words
-5. Do NOT use bullet points — write in flowing paragraphs`;
+1. Speak in a "Civic Mentor" tone: Informative, encouraging, and clear.
+2. Direct Impact: Explain exactly how this hits the life of a ${occupation || "young person"}.
+3. The Why: Why is this happening now? (Context).
+4. Takeaway: One specific thing they should watch out for or do.
+5. Keep it conversational — avoid bullet points. Final word count under 150 words.`;
 
   try {
-    // Attempting the specific 2026 model ID. Fallback if needed.
-    const models = ["claude-opus-4-5-20251101", "claude-4-5-opus", "claude-3-5-opus"];
-    
     const response = await alleai.chat.completions({
-      models: [models[0]], // Using the most specific one first
+      models: ["gpt-4o"],
       response_format: { type: "text" },
       messages: [
         {
@@ -124,11 +167,19 @@ Instructions:
       ],
     });
 
-    // Handle different response structures from AlleAI
-    const explanation = response.choices?.[0]?.message?.content || 
-                       response.result || 
-                       response.content ||
-                       "Your personalized policy explanation is ready! (Response format slightly adjusted)";
+    // ROBUST EXTRACTION
+    let explanation = "";
+    if (response.choices?.[0]?.message?.content) {
+      explanation = response.choices[0].message.content;
+    } else if (response.responses?.responses?.["gpt-4o"]?.message?.content) {
+      explanation = response.responses.responses["gpt-4o"].message.content;
+    } else if (response.result) {
+      explanation = response.result;
+    } else if (response.content) {
+      explanation = response.content;
+    } else {
+      explanation = "Your personalized policy explanation is ready! (Response format slightly adjusted)";
+    }
                        
     res.json({ explanation });
   } catch (error) {
@@ -144,6 +195,23 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Schedule Automated Ingestion: Every hour at the top of the hour
+cron.schedule("0 * * * *", async () => {
+    console.log("⏰ CRON: Starting automated news ingestion...");
+    try {
+        const newPolicies = await runIngestion();
+        let addedCount = 0;
+        for (const np of newPolicies) {
+            const saved = savePolicy(np);
+            if (saved) addedCount++;
+        }
+        console.log(`⏰ CRON: Automated ingestion complete. Added ${addedCount} new policies.`);
+    } catch (error) {
+        console.error("⏰ CRON: Automated ingestion failed:", error.message);
+    }
+});
+
 app.listen(PORT, () => {
-  console.log(`🚀 CivicPulse API running on http://localhost:${PORT} (Using AlleAI)`);
+    console.log(`🚀 CivicPulse API running on http://localhost:${PORT} (Persistent SQLite)`);
+    console.log(`⏰ Pulse Ingestor scheduled (Every 1 hour)`);
 });

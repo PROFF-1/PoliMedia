@@ -9,96 +9,143 @@ const alleai = new AlleAIClient({
   apiKey: process.env.ALLEAI_API_KEY,
 });
 
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer': 'https://www.google.com'
+};
+
 /**
- * Step 1: Scrape Latest Ghana Politics News (Direct HTML)
+ * SOURCE 1: Citi Newsroom (Handle 403 gracefully)
  */
-async function fetchNews() {
-  console.log("📡 Scraping live politics news from Citi Newsroom...");
+async function scrapeCitiNews() {
+  console.log("📡 Scraping: Citi Newsroom...");
   try {
-    const { data } = await axios.get("https://citinewsroom.com/category/news/politics/", {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
-    
+    const { data } = await axios.get("https://citinewsroom.com/category/news/politics/", { headers: HEADERS, timeout: 5000 });
     const $ = cheerio.load(data);
     const items = [];
-
-    // Updated selectors based on JNews theme used by Citi Newsroom
     $(".jeg_post").each((i, el) => {
-      if (i >= 5) return; // Top 5 stories
-
+      if (i >= 3) return;
       const titleEl = $(el).find(".jeg_post_title a");
-      const title = titleEl.text().trim();
-      const link = titleEl.attr("href");
-      const snippet = $(el).find(".jeg_post_excerpt").text().trim();
-
-      if (title && link) {
+      if (titleEl.length) {
         items.push({
-          title,
-          link,
-          contentSnippet: snippet,
-          pubDate: new Date().toISOString()
+          title: titleEl.text().trim(),
+          link: titleEl.attr("href"),
+          snippet: $(el).find(".jeg_post_excerpt").text().trim(),
+          sourceName: "Citi News Ghana"
         });
       }
     });
-
-    console.log(`✅ Scraped ${items.length} news items.`);
     return items;
-  } catch (error) {
-    console.error("Scraping error:", error.message);
+  } catch (e) {
+    console.warn("⚠️ Citi News scrape blocked (403/502). Skipping.");
     return [];
   }
 }
 
 /**
- * Step 2: AI Harmonization (Transform news to CivicPulse Policy)
+ * SOURCE 2: JoyOnline (Broader Selectors)
  */
-async function harmonizeWithAI(newsItem) {
-  console.log(`🤖 Harmonizing: ${newsItem.title}`);
-  
-  const prompt = `You are a policy analyst for CivicPulse Ghana. Convert this news item into a structured "Policy" object.
-
-News Title: ${newsItem.title}
-Snippet: ${newsItem.contentSnippet}
-
-REQUIRED JSON OUTPUT FORMAT:
-{
-  "title": "Short, clear title",
-  "summary": "1-2 sentence high-level summary",
-  "category": "transport|finance|health|education|technology",
-  "tags": [{"label": "Status", "direction": "up|down|neutral"}],
-  "impacts": {
-    "student": "1-sentence impact",
-    "developer": "1-sentence impact",
-    "trader": "1-sentence impact",
-    "default": "generic impact"
-  },
-  "deepExplanation": "2-3 comprehensive sentences explaining the context (The Why)."
+async function scrapeJoyOnline() {
+  console.log("📡 Scraping: JoyOnline...");
+  try {
+    const { data } = await axios.get("https://www.myjoyonline.com/category/politics/", { headers: HEADERS, timeout: 5000 });
+    const $ = cheerio.load(data);
+    const items = [];
+    
+    // JoyOnline often uses h3 for titles in grids
+    $("h3 a").each((i, el) => {
+      const title = $(el).text().trim();
+      const href = $(el).attr("href");
+      if (title.length > 30 && href && href.includes("politics") && items.length < 5) {
+        items.push({
+          title,
+          link: href.startsWith("http") ? href : "https://www.myjoyonline.com" + href,
+          snippet: "",
+          sourceName: "JoyOnline"
+        });
+      }
+    });
+    return items;
+  } catch (e) {
+    console.warn("⚠️ JoyOnline scrape failed. Skipping.");
+    return [];
+  }
 }
 
-Instructions:
-1. If the news is NOT about government/policy/public life, return null.
-2. Focus on how it affects the livelihood of youth in Ghana.
-3. Return ONLY valid JSON.`;
+/**
+ * SOURCE 3: Graphic Online (Verified Working)
+ */
+async function scrapeGraphicOnline() {
+  console.log("📡 Scraping: Graphic Online...");
+  try {
+    const { data } = await axios.get("https://www.graphic.com.gh/news/politics.html", { headers: HEADERS, timeout: 5000 });
+    const $ = cheerio.load(data);
+    const items = [];
+    
+    // Select both featured and list items
+    $("h4 a, h2 a").each((i, el) => {
+      const title = $(el).text().trim();
+      const href = $(el).attr("href");
+      if (title.length > 30 && href && items.length < 5) {
+        items.push({
+          title,
+          link: href.startsWith("http") ? href : "https://www.graphic.com.gh" + href,
+          snippet: "",
+          sourceName: "Graphic Online"
+        });
+      }
+    });
+    return items;
+  } catch (e) {
+    console.warn("⚠️ Graphic Online scrape failed. Skipping.");
+    return [];
+  }
+}
+
+/**
+ * AI Logic: General Summary + Policy Classification
+ */
+async function processNewsWithAI(newsItem) {
+  console.log(`🤖 Processing [${newsItem.sourceName}]: ${newsItem.title.substring(0, 40)}...`);
+  
+  const prompt = `You are a policy analyst for CivicPulse Ghana. Analyze this news item.
+
+News Title: ${newsItem.title}
+Snippet: ${newsItem.snippet}
+
+OUTPUT JSON FORMAT:
+{
+  "generalSummary": "A concise 1-sentence summary for a general news explore feed.",
+  "isPolicy": true/false (Is this an actual significant government policy, law, or major public mandate?),
+  "policyData": null OR {
+     "title": "Clear policy title",
+     "summary": "1-2 sentence high-impact summary",
+     "category": "transport|finance|health|education|technology|public life",
+     "tags": [{"label": "Status", "direction": "up|down|neutral"}],
+     "relevance": { "student": 1-5, "developer": 1-5, "trader": 1-5, "default": 2 },
+     "factContext": "A brief, 1-sentence historical or legal 'did you know?' about this topic in Ghana.",
+     "impacts": {
+        "student": "1-sentence impact",
+        "developer": "1-sentence impact",
+        "trader": "1-sentence impact",
+        "default": "how it affects citizens generally"
+     },
+     "deepExplanation": "3-sentence dive into context/history/implications."
+  }
+}
+
+Guidelines:
+1. "isPolicy" should be true ONLY for government actions.
+2. Return ONLY valid JSON.`;
 
   try {
     const response = await alleai.chat.completions({
-      models: ["gpt-4o"], // Verified active model
-      response_format: { type: "text" },
-      messages: [
-        {
-          user: [
-            {
-              type: "text",
-              text: prompt
-            }
-          ]
-        }
-      ],
+      models: ["gpt-4o"],
+      messages: [{ user: [{ type: "text", text: prompt }] }],
     });
 
-    // ROBUST EXTRACTION: AlleAI sometimes wraps results differently depending on the model/config
     let content = "";
     if (response.choices?.[0]?.message?.content) {
       content = response.choices[0].message.content;
@@ -106,51 +153,57 @@ Instructions:
       content = response.responses.responses["gpt-4o"].message.content;
     } else if (response.result) {
       content = response.result;
-    } else if (response.content) {
-      content = response.content;
     }
 
-    console.log(`DEBUG: Extracted Content length: ${content.length}`);
-    
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    
     if (jsonMatch) {
-      const policyData = JSON.parse(jsonMatch[0]);
-      if (policyData.title && policyData.title !== "null") {
-        console.log(`✨ Generated Policy: ${policyData.title}`);
-        return {
-          ...policyData,
-          id: Date.now() + Math.random(),
-          source: newsItem.link,
-          sourceName: "Citi News Ghana",
-          date: new Date().toISOString().split('T')[0]
-        };
-      }
+      const data = JSON.parse(jsonMatch[0]);
+      return {
+        id: Date.now() + Math.random(),
+        title: newsItem.title,
+        generalSummary: data.generalSummary,
+        source: newsItem.link,
+        sourceName: newsItem.sourceName,
+        date: new Date().toISOString().split('T')[0],
+        isPolicy: data.isPolicy,
+        policyData: data.policyData
+      };
     }
-  } catch (error) {
-    console.error("AI processing failed for item:", newsItem.title, error.message);
+  } catch (e) {
+    console.error(`AI failed for ${newsItem.title}:`, e.message);
   }
   return null;
 }
 
 /**
- * Step 3: Run the Ingestion Pipeline
+ * Main Pipeline
  */
 async function runIngestion() {
-  const news = await fetchNews();
-  const validPolicies = [];
+  const allRawNews = [];
+  
+  // Try fetching sources
+  const results = await Promise.all([
+    scrapeCitiNews(),
+    scrapeJoyOnline(),
+    scrapeGraphicOnline()
+  ]);
+  
+  results.forEach(batch => allRawNews.push(...batch));
+  console.log(`📡 Total raw news gathered: ${allRawNews.length}`);
 
-  for (const item of news) {
-    const policy = await harmonizeWithAI(item);
-    if (policy) {
-      validPolicies.push(policy);
+  const processedItems = [];
+  // Limit to processing 8 items total to save AI tokens/time
+  const limitedNews = allRawNews.slice(0, 8);
+
+  for (const item of limitedNews) {
+    const processed = await processNewsWithAI(item);
+    if (processed) {
+      processedItems.push(processed);
     }
-    // Rate limit protection
     await new Promise(r => setTimeout(r, 1000));
   }
 
-  console.log(`✅ Ingestion complete. Generated ${validPolicies.length} new policies.`);
-  return validPolicies;
+  return processedItems;
 }
 
 module.exports = { runIngestion };
