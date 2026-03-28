@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useProfile } from '@/constants/ProfileContext';
 import { getPersonalizedPolicies } from '@/constants/policies';
 import Colors from '@/constants/Colors';
+import { API_BASE_URL } from '@/constants/API';
 
 const TAG_COLORS: Record<string, { icon: string; color: string }> = {
   up: { icon: '↑', color: '#ef4444' },
@@ -24,12 +25,41 @@ export default function PolicyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useProfile();
   const router = useRouter();
+  
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const policy = useMemo(() => {
     if (!profile) return null;
     const policies = getPersonalizedPolicies(profile.occupation, profile.location);
     return policies.find((p) => p.id.toString() === id) || null;
   }, [id, profile]);
+
+  const fetchAIExplanation = async () => {
+    if (loading || !policy) return;
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/explain`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          policyTitle: policy.title,
+          policySummary: policy.summary,
+          occupation: profile?.occupation,
+          ageGroup: profile?.ageGroup,
+          location: profile?.location,
+        }),
+      });
+      const data = await response.json();
+      setAiExplanation(data.explanation);
+    } catch (error) {
+      console.error('Failed to fetch AI explanation:', error);
+      setAiExplanation("Unable to connect to the AI at the moment. Please try again later!");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!policy) {
     return (
@@ -133,23 +163,36 @@ export default function PolicyDetailScreen() {
           <Text style={styles.deepDiveText}>{policy.deepExplanation}</Text>
         </Animated.View>
 
-        {/* AI Section (placeholder — hook up to /api/explain when API is ready) */}
+        {/* AI Section (hooked up to /api/explain) */}
         <Animated.View
           entering={FadeInDown.delay(500).duration(400)}
           style={styles.aiCard}
         >
           <Text style={styles.aiTitle}>🤖 AI Explanation</Text>
-          <TouchableOpacity style={styles.aiButton} activeOpacity={0.8}>
-            <Text style={styles.aiButtonText}>
-              ✨ Explain this to me like I'm{' '}
-              {profile?.ageGroup === '15-17'
-                ? 'in high school'
-                : `a ${profile?.occupation}`}
-            </Text>
-          </TouchableOpacity>
-          <Text style={styles.aiNote}>
-            AI explanations will be available when connected to the server
-          </Text>
+          {aiExplanation ? (
+             <View style={styles.aiResponseContainer}>
+                <Text style={styles.aiResponseText}>{aiExplanation}</Text>
+                <TouchableOpacity onPress={() => setAiExplanation(null)} style={styles.resetAi}>
+                   <Text style={styles.resetAiText}>✕ Clear</Text>
+                </TouchableOpacity>
+             </View>
+          ) : (
+            <>
+              <TouchableOpacity 
+                 disabled={loading}
+                 onPress={fetchAIExplanation} 
+                 style={[styles.aiButton, loading && {opacity: 0.6}]} 
+                 activeOpacity={0.8}
+              >
+                <Text style={styles.aiButtonText}>
+                  {loading ? '✨ Working on it...' : `✨ Explain this to me like I'm ${profile?.ageGroup === '15-17' ? 'in high school' : `a ${profile?.occupation}`}`}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.aiNote}>
+                Powered by Alle-AI (Claude Opus)
+              </Text>
+            </>
+          )}
         </Animated.View>
 
         {/* Source link */}
@@ -315,6 +358,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.accentPurple,
+  },
+  aiResponseContainer: {
+    backgroundColor: 'rgba(139,92,246,0.1)',
+    borderRadius: 12,
+    padding: 14,
+  },
+  aiResponseText: {
+    fontSize: 14,
+    color: Colors.civic200,
+    lineHeight: 22,
+  },
+  resetAi: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+  },
+  resetAiText: {
+    fontSize: 12,
+    color: Colors.accentPurple,
+    fontWeight: '600',
   },
   aiNote: {
     fontSize: 11,
