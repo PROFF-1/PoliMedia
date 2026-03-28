@@ -1,4 +1,4 @@
-// Mock policy data for CivicPulse
+// Mock policy data for PoliMedia
 export interface PolicyTag {
   label: string;
   direction: 'up' | 'down' | 'neutral';

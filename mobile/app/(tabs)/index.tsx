@@ -12,30 +12,29 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useProfile } from '@/constants/ProfileContext';
-import { getPersonalizedPolicies, type PersonalizedPolicy } from '@/constants/policies';
+import { usePolicies } from '@/constants/PoliciesContext';
+import type { PersonalizedPolicy } from '@/constants/policies';
 import PolicyCard from '@/components/PolicyCard';
-import Colors from '@/constants/Colors';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const CATEGORY_FILTERS = [
-  { id: 'all', label: 'All', emoji: '🔥' },
-  { id: 'transport', label: 'Transport', emoji: '🚗' },
-  { id: 'finance', label: 'Finance', emoji: '💰' },
-  { id: 'education', label: 'Education', emoji: '📖' },
-  { id: 'housing', label: 'Housing', emoji: '🏠' },
-  { id: 'health', label: 'Health', emoji: '💊' },
-  { id: 'technology', label: 'Tech', emoji: '📱' },
+  { id: 'all', label: 'All', icon: 'apps-outline' },
+  { id: 'transport', label: 'Transport', icon: 'car-outline' },
+  { id: 'finance', label: 'Finance', icon: 'cash-outline' },
+  { id: 'education', label: 'Education', icon: 'book-outline' },
+  { id: 'housing', label: 'Housing', icon: 'home-outline' },
+  { id: 'health', label: 'Health', icon: 'medkit-outline' },
+  { id: 'technology', label: 'Tech', icon: 'hardware-chip-outline' },
 ];
 
 export default function FeedScreen() {
   const { profile } = useProfile();
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
+  
+  const { policies, loading, refreshPolicies } = usePolicies();
   const [refreshing, setRefreshing] = useState(false);
-
-  const policies = useMemo(() => {
-    if (!profile) return [];
-    return getPersonalizedPolicies(profile.occupation, profile.location);
-  }, [profile]);
 
   const filteredPolicies = useMemo(() => {
     if (activeFilter === 'all') return policies;
@@ -49,9 +48,10 @@ export default function FeedScreen() {
     return 'Good evening';
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    await refreshPolicies();
+    setRefreshing(false);
   };
 
   const handlePolicyPress = (policy: PersonalizedPolicy) => {
@@ -68,24 +68,30 @@ export default function FeedScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <LinearGradient
-              colors={[Colors.accentBlue, Colors.accentPurple]}
+              colors={[Colors.primary, Colors.primaryDark]}
               style={styles.headerIcon}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Text style={{ fontSize: 14 }}>⚡</Text>
+              <View style={styles.headerIconInner}>
+                <MaterialCommunityIcons name="bullhorn" size={16} color={Colors.primaryDark} />
+              </View>
             </LinearGradient>
-            <Text style={styles.headerTitle}>PoliMedia</Text>
+            <View>
+              <Text style={styles.headerTitle}>PoliMedia</Text>
+              <Text style={styles.headerMeta}>Policy intelligence brief</Text>
+            </View>
           </View>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/profile')}
             style={styles.profileBadge}
           >
-            <Text style={styles.profileBadgeText}>👤 {profile?.occupation}</Text>
+            <Ionicons name="person-circle-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.profileBadgeText}>{profile?.occupation}</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.headerSubtitle}>
-          {getGreeting()} — here's what affects you today
+          {getGreeting()}, here is your curated impact feed
         </Text>
       </Animated.View>
 
@@ -106,7 +112,11 @@ export default function FeedScreen() {
               ]}
               activeOpacity={0.7}
             >
-              <Text style={styles.filterEmoji}>{filter.emoji}</Text>
+              <Ionicons
+                name={filter.icon as keyof typeof Ionicons.glyphMap}
+                size={14}
+                color={activeFilter === filter.id ? Colors.white : Colors.primary}
+              />
               <Text
                 style={[
                   styles.filterLabel,
@@ -129,21 +139,26 @@ export default function FeedScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.accentBlue}
-            colors={[Colors.accentBlue]}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
           />
         }
       >
-        {filteredPolicies.length === 0 ? (
+        {loading && !refreshing ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📭</Text>
+            <Ionicons name="sync-outline" size={56} color={Colors.primary} />
+            <Text style={styles.emptyText}>Loading latest policies...</Text>
+          </View>
+        ) : filteredPolicies.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="mail-open-outline" size={56} color={Colors.primary} />
             <Text style={styles.emptyText}>No policies in this category yet</Text>
           </View>
         ) : (
           filteredPolicies.map((policy, index) => (
             <Animated.View
               key={policy.id}
-              entering={FadeInDown.delay(index * 100).duration(500).springify()}
+              entering={FadeInDown.delay(index * 80).duration(200)}
             >
               <PolicyCard
                 policy={policy}
@@ -161,14 +176,15 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.civic900,
+    backgroundColor: Colors.bg,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.glassBorder,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.headerGlass,
   },
   headerTop: {
     flexDirection: 'row',
@@ -179,90 +195,107 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   headerIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  headerIconInner: {
+    width: 22,
+    height: 22,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: -0.3,
+    ...Typography.h2,
+    fontFamily: Typography.fontFamily,
+  },
+  headerMeta: {
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    fontSize: 11,
+    color: Colors.textSecondary,
   },
   profileBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: Colors.border,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    backgroundColor: Colors.surface,
   },
   profileBadgeText: {
-    color: Colors.civic400,
-    fontSize: 12,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    textTransform: 'capitalize',
   },
   headerSubtitle: {
-    color: Colors.civic500,
-    fontSize: 12,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
   },
   filtersWrapper: {
     borderBottomWidth: 1,
-    borderBottomColor: Colors.glassBorder,
+    borderBottomColor: Colors.border,
   },
   filtersContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.glassWhite,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primaryLight,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    gap: 4,
+    borderColor: Colors.border,
+    gap: Spacing.xs,
     marginRight: 6,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  filterEmoji: {
-    fontSize: 12,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   filterLabel: {
+    fontFamily: Typography.fontFamily,
     fontSize: 12,
     fontWeight: '500',
-    color: Colors.civic400,
+    color: Colors.primary,
   },
   filterLabelActive: {
-    color: Colors.accentBlue,
+    color: Colors.white,
   },
   feed: {
     flex: 1,
   },
   feedContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    gap: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    gap: Spacing.md,
   },
   emptyState: {
     alignItems: 'center',
     paddingTop: 80,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
   emptyText: {
-    color: Colors.civic400,
-    fontSize: 15,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textSecondary,
   },
 });

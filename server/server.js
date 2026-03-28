@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 const { AlleAIClient } = require("alle-ai-sdk");
 const cron = require("node-cron");
 const { runIngestion } = require("./ingestor.js");
-const { savePolicy, saveArticle, getAllPolicies, getAllArticles } = require("./database.js");
+const { savePolicy, saveArticle, getAllPolicies, getAllArticles, getPolicyById } = require("./database.js");
 const initialMockData = require("./data/policies.js");
 
 dotenv.config({ path: "../.env" });
@@ -36,43 +36,73 @@ seedDatabase();
 // GET /api/explore — Return ALL aggregated news entries
 app.get("/api/explore", (req, res) => {
   const articles = getAllArticles();
-  res.json(articles);
+  // Map to a structure compatible with the mobile PolicyCard
+  const mapped = articles.map(a => ({
+    ...a,
+    category: "technology", // Default for news
+    tags: [],
+    personalImpact: "", // No persona impact for general news
+    roleRelevance: 2
+  }));
+  res.json(mapped);
 });
 
 // GET /api/policies — Return personalized/filtered High-Impact policies
 app.get("/api/policies", (req, res) => {
   const { occupation, location } = req.query;
+  const occ = (occupation || "default").toLowerCase();
+  const loc = (location || "urban").toLowerCase();
 
   const dbPolicies = getAllPolicies();
+  const dbArticles = getAllArticles().slice(0, 5); // Get latest 5 live news
 
+  // Enriched policies (High-Impact)
   let enriched = dbPolicies.map((policy) => {
     const impacts = typeof policy.impacts === "string" ? JSON.parse(policy.impacts) : policy.impacts;
     const relevance = typeof policy.relevance === "string" ? JSON.parse(policy.relevance) : policy.relevance;
     
-    const personalImpact = impacts[occupation] || impacts.default;
-    const roleRelevance = relevance[occupation] || relevance.default || 2;
+    const personalImpact = impacts[occ] || impacts.default;
+    const roleRelevance = relevance[occ] || relevance.default || 1;
 
-    return {
-      ...policy,
-      personalImpact,
-      roleRelevance
-    };
+    return { ...policy, personalImpact, roleRelevance };
   });
 
-  // Filter: If occupation is specified, only show things with some relevance (>1)
-  if (occupation) {
-    enriched = enriched.filter(p => p.roleRelevance > 1);
+  // Mixed in articles (General News)
+  const articlesAsPolicies = dbArticles.map(a => ({
+    ...a,
+    category: "technology",
+    tags: [],
+    personalImpact: "", 
+    roleRelevance: 4 // Boosted from 2 to ensure visibility alongside high-impact policies
+  }));
+
+  const allItems = [...enriched, ...articlesAsPolicies];
+
+  // 1. Filter by relevance (Strict: 2+ to show news and policies)
+  let filtered = allItems.filter(p => p.roleRelevance >= 2);
+  
+  // Sort by relevance then date
+  filtered.sort((a, b) => {
+    if (b.roleRelevance !== a.roleRelevance) return b.roleRelevance - a.roleRelevance;
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  res.json(filtered);
+});
+
+// GET /api/policies/:id — Return a single policy or article by ID
+app.get("/api/policies/:id", (req, res) => {
+  const item = getPolicyById(req.params.id);
+  if (!item) return res.status(404).json({ error: "Policy not found" });
+
+  // Add persona enrichment if personal impact is requested
+  const occ = (req.query.occupation || "").toLowerCase();
+  if (occ && item.impacts) {
+    const impacts = typeof item.impacts === "string" ? JSON.parse(item.impacts) : item.impacts;
+    item.personalImpact = impacts[occ] || impacts.default || "";
   }
 
-  // Sort: By Relevance first, then Date
-  enriched.sort((a, b) => {
-     if (b.roleRelevance !== a.roleRelevance) {
-       return b.roleRelevance - a.roleRelevance;
-     }
-     return new Date(b.date) - new Date(a.date);
-  });
-
-  res.json(enriched);
+  res.json(item);
 });
 
 // POST /api/ingest — Trigger automated scraping & AI distribution
@@ -168,18 +198,11 @@ Instructions:
     });
 
     // ROBUST EXTRACTION
-    let explanation = "";
-    if (response.choices?.[0]?.message?.content) {
-      explanation = response.choices[0].message.content;
-    } else if (response.responses?.responses?.["gpt-4o"]?.message?.content) {
-      explanation = response.responses.responses["gpt-4o"].message.content;
-    } else if (response.result) {
-      explanation = response.result;
-    } else if (response.content) {
-      explanation = response.content;
-    } else {
-      explanation = "Your personalized policy explanation is ready! (Response format slightly adjusted)";
-    }
+    const explanation = response.choices?.[0]?.message?.content ||
+      (response.responses?.responses?.["gpt-4o"]?.message?.content) ||
+      response.result ||
+      response.content ||
+      "Your personalized policy explanation is ready! (Response format slightly adjusted)";
                        
     res.json({ explanation });
   } catch (error) {
@@ -195,9 +218,9 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Schedule Automated Ingestion: Every hour at the top of the hour
-cron.schedule("0 * * * *", async () => {
-    console.log("⏰ CRON: Starting automated news ingestion...");
+// Pulse Ingestor: Automated run every 5 minutes
+cron.schedule("*/5 * * * *", async () => {
+    console.log("⏰ Pulse Ingestor: Starting scheduled run...");
     try {
         const newPolicies = await runIngestion();
         let addedCount = 0;
@@ -213,5 +236,5 @@ cron.schedule("0 * * * *", async () => {
 
 app.listen(PORT, () => {
     console.log(`🚀 CivicPulse API running on http://localhost:${PORT} (Persistent SQLite)`);
-    console.log(`⏰ Pulse Ingestor scheduled (Every 1 hour)`);
+    console.log(`⏰ Pulse Ingestor scheduled (Every 5 minutes)`);
 });

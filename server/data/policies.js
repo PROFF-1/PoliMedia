@@ -25,6 +25,7 @@ const policies = [
       urban: "You'll feel this most in daily ride-hailing and delivery costs.",
       rural: "Fewer transport options means you're more dependent on fuel — this hits harder.",
     },
+    relevance: { student: 3, developer: 2, trader: 4, healthcare: 4, farmer: 5, default: 3 },
     deepExplanation:
       "The fuel levy is a tax added to every litre of fuel sold. When it goes up, the price at the pump increases immediately. But the ripple effects are bigger — since almost everything is transported by road, the cost of food, goods, and services tends to follow. For young people, this means higher trotro/Uber fares, pricier deliveries, and more expensive meals at your favorite spot.",
   },
@@ -49,6 +50,7 @@ const policies = [
       farmer: "Selling produce and receiving payments via mobile money is now fully levy-free.",
       default: "Your mobile money transactions are now free from the 1% e-levy charge.",
     },
+    relevance: { student: 4, developer: 5, trader: 5, healthcare: 3, farmer: 2, default: 4 },
     impactsByLocation: {
       urban: "Great news for your daily MoMo transactions — food, rides, and splits are cheaper.",
       rural: "Mobile money is often your primary banking — this removal saves you real money.",
@@ -77,6 +79,7 @@ const policies = [
       farmer: "Agricultural science programs in schools will get better resources and equipment.",
       default: "Education access is expanding, which strengthens the overall workforce and economy.",
     },
+    relevance: { student: 5, developer: 2, trader: 1, healthcare: 2, farmer: 1, default: 3 },
     impactsByLocation: {
       urban: "Urban schools get digital labs and faster internet for e-learning.",
       rural: "Rural schools are prioritized for new STEM lab installations — this bridges the gap.",
@@ -105,6 +108,7 @@ const policies = [
       farmer: "Less direct impact if you own land, but rented storage and market spaces are now protected.",
       default: "Rent increases are now capped at 10% per year with mandatory advance notice.",
     },
+    relevance: { student: 4, developer: 4, trader: 4, healthcare: 4, farmer: 2, default: 4 },
     impactsByLocation: {
       urban: "This hits hardest in cities like Accra and Kumasi where rent hikes have been extreme.",
       rural: "Less immediate impact, but sets a precedent for fair housing nationally.",
@@ -133,6 +137,7 @@ const policies = [
       farmer: "Isolation and financial stress are common — counseling is now accessible at NHIS-accredited facilities.",
       default: "Mental health consultations and basic treatment are now covered by your NHIS card.",
     },
+    relevance: { student: 5, developer: 4, trader: 3, healthcare: 5, farmer: 3, default: 4 },
     impactsByLocation: {
       urban: "More mental health facilities in cities means easier access to covered services.",
       rural: "Access may be limited initially, but mobile/telehealth mental health services are being rolled out.",
@@ -161,6 +166,7 @@ const policies = [
       farmer: "Your farm gets a digital address — easier for buyers and logistics companies to reach you.",
       default: "Ghana's addressing system is going digital, making deliveries and location services more reliable.",
     },
+    relevance: { student: 2, developer: 5, trader: 4, healthcare: 4, farmer: 3, default: 3 },
     impactsByLocation: {
       urban: "E-commerce and delivery services will become much more reliable in cities.",
       rural: "This finally puts rural areas on the digital map — literally. Emergency services can find you.",

@@ -11,33 +11,57 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useProfile } from '@/constants/ProfileContext';
-import { getPersonalizedPolicies } from '@/constants/policies';
-import Colors from '@/constants/Colors';
+import { usePolicies } from '@/constants/PoliciesContext';
+import Colors, { Radius, Spacing, Typography } from '@/constants/Colors';
 import { API_BASE_URL } from '@/constants/API';
+import { Ionicons } from '@expo/vector-icons';
 
-const TAG_COLORS: Record<string, { icon: string; color: string }> = {
-  up: { icon: '↑', color: '#ef4444' },
-  down: { icon: '↓', color: '#10b981' },
-  neutral: { icon: '→', color: '#f59e0b' },
+const TAG_COLORS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+  up: { icon: 'arrow-up', color: Colors.error },
+  down: { icon: 'arrow-down', color: Colors.success },
+  neutral: { icon: 'remove', color: Colors.warning },
 };
 
 export default function PolicyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useProfile();
+  const { policies, loading: policiesLoading } = usePolicies();
   const router = useRouter();
   
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [fetchedPolicy, setFetchedPolicy] = useState<PersonalizedPolicy | null>(null);
+  const [fetchLoading, setFetchLoading] = useState(false);
 
   const policy = useMemo(() => {
-    if (!profile) return null;
-    const policies = getPersonalizedPolicies(profile.occupation, profile.location);
-    return policies.find((p) => p.id.toString() === id) || null;
-  }, [id, profile]);
+    return policies.find((p) => p.id.toString() === id) || fetchedPolicy;
+  }, [id, policies, fetchedPolicy]);
+
+  const loadPolicy = async () => {
+    if (!id || policies.find((p) => p.id.toString() === id)) return;
+    
+    setFetchLoading(true);
+    try {
+      const url = `${API_BASE_URL}/api/policies/${id}?occupation=${profile?.occupation || ''}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setFetchedPolicy(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch policy by ID:', error);
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadPolicy();
+  }, [id, profile?.occupation]);
 
   const fetchAIExplanation = async () => {
-    if (loading || !policy) return;
-    setLoading(true);
+    if (aiLoading || !policy) return;
+    setAiLoading(true);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/explain`, {
@@ -57,15 +81,26 @@ export default function PolicyDetailScreen() {
       console.error('Failed to fetch AI explanation:', error);
       setAiExplanation("Unable to connect to the AI at the moment. Please try again later!");
     } finally {
-      setLoading(false);
+      setAiLoading(false);
     }
   };
+
+  if ((policiesLoading || fetchLoading) && !policy) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="sync-outline" size={48} color={Colors.primary} style={styles.errorIcon} />
+          <Text style={styles.errorText}>Loading policy details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!policy) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorEmoji}>❌</Text>
+          <Ionicons name="alert-circle-outline" size={48} color={Colors.error} style={styles.errorIcon} />
           <Text style={styles.errorText}>Policy not found</Text>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backLink}>← Go back</Text>
@@ -99,7 +134,8 @@ export default function PolicyDetailScreen() {
             onPress={() => router.back()}
             style={styles.closeButton}
           >
-            <Text style={styles.closeText}>✕ Close</Text>
+            <Ionicons name="close" size={16} color={Colors.textSecondary} />
+            <Text style={styles.closeText}>Close</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -109,10 +145,16 @@ export default function PolicyDetailScreen() {
 
           {/* Meta */}
           <View style={styles.metaRow}>
-            <Text style={styles.metaDate}>📅 {formattedDate}</Text>
+            <View style={styles.metaItem}>
+              <Ionicons name="calendar-outline" size={12} color={Colors.textSecondary} />
+              <Text style={styles.metaDate}>{formattedDate}</Text>
+            </View>
             <Text style={styles.metaDot}>•</Text>
             <TouchableOpacity onPress={() => Linking.openURL(policy.source)}>
-              <Text style={styles.metaSource}>🔗 {policy.sourceName}</Text>
+              <View style={styles.metaItem}>
+                <Ionicons name="link-outline" size={12} color={Colors.textLink} />
+                <Text style={styles.metaSource}>{policy.sourceName}</Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -125,68 +167,91 @@ export default function PolicyDetailScreen() {
           entering={FadeInDown.delay(200).duration(400)}
           style={styles.impactCard}
         >
-          <Text style={styles.sectionTitle}>👤 How this affects you</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person-outline" size={17} color={Colors.textPrimary} />
+            <Text style={styles.sectionTitle}>How this affects you</Text>
+          </View>
           <Text style={styles.impactText}>{policy.personalImpact}</Text>
           {policy.locationImpact ? (
             <View style={styles.locationDivider}>
-              <Text style={styles.locationText}>📍 {policy.locationImpact}</Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
+                <Text style={styles.locationText}>{policy.locationImpact}</Text>
+              </View>
             </View>
           ) : null}
         </Animated.View>
 
         {/* Tags */}
-        <Animated.View
-          entering={FadeInDown.delay(300).duration(400)}
-          style={styles.tagsContainer}
-        >
-          {policy.tags.map((tag, i) => {
-            const dir = TAG_COLORS[tag.direction] || TAG_COLORS.neutral;
-            return (
-              <View
-                key={i}
-                style={[styles.tag, { backgroundColor: `${dir.color}18` }]}
-              >
-                <Text style={[styles.tagText, { color: dir.color }]}>
-                  {tag.label} {dir.icon}
-                </Text>
-              </View>
-            );
-          })}
-        </Animated.View>
+        {policy.tags && policy.tags.length > 0 ? (
+          <Animated.View
+            entering={FadeInDown.delay(300).duration(400)}
+            style={styles.tagsContainer}
+          >
+            {policy.tags.map((tag, i) => {
+              const dir = TAG_COLORS[tag.direction] || TAG_COLORS.neutral;
+              return (
+                <View
+                  key={i}
+                  style={[styles.tag, { backgroundColor: `${dir.color}18` }]}
+                >
+                  <View style={styles.tagRow}>
+                    <Text style={[styles.tagText, { color: dir.color }]}>{tag.label}</Text>
+                    <Ionicons name={dir.icon} size={12} color={dir.color} />
+                  </View>
+                </View>
+              );
+            })}
+          </Animated.View>
+        ) : null}
 
         {/* Deep Explanation */}
-        <Animated.View
-          entering={FadeInDown.delay(400).duration(400)}
-          style={styles.deepDiveCard}
-        >
-          <Text style={styles.sectionTitle}>🔍 Deep Dive</Text>
-          <Text style={styles.deepDiveText}>{policy.deepExplanation}</Text>
-        </Animated.View>
+        {policy.deepExplanation ? (
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(400)}
+            style={styles.deepDiveCard}
+          >
+            <View style={styles.sectionHeader}>
+              <Ionicons name="search-outline" size={17} color={Colors.textPrimary} />
+              <Text style={styles.sectionTitle}>Deep Dive</Text>
+            </View>
+            <Text style={styles.deepDiveText}>{policy.deepExplanation}</Text>
+          </Animated.View>
+        ) : null}
 
         {/* AI Section (hooked up to /api/explain) */}
         <Animated.View
           entering={FadeInDown.delay(500).duration(400)}
           style={styles.aiCard}
         >
-          <Text style={styles.aiTitle}>🤖 AI Explanation</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="sparkles-outline" size={17} color={Colors.textPrimary} />
+            <Text style={styles.aiTitle}>AI Explanation</Text>
+          </View>
           {aiExplanation ? (
              <View style={styles.aiResponseContainer}>
                 <Text style={styles.aiResponseText}>{aiExplanation}</Text>
                 <TouchableOpacity onPress={() => setAiExplanation(null)} style={styles.resetAi}>
-                   <Text style={styles.resetAiText}>✕ Clear</Text>
+                   <View style={styles.clearAiRow}>
+                     <Ionicons name="close" size={12} color={Colors.error} />
+                     <Text style={styles.resetAiText}>Clear</Text>
+                   </View>
                 </TouchableOpacity>
              </View>
           ) : (
             <>
               <TouchableOpacity 
-                 disabled={loading}
+                 disabled={aiLoading}
                  onPress={fetchAIExplanation} 
-                 style={[styles.aiButton, loading && {opacity: 0.6}]} 
+                 style={[styles.aiButton, aiLoading && {opacity: 0.6}]} 
                  activeOpacity={0.8}
               >
-                <Text style={styles.aiButtonText}>
-                  {loading ? '✨ Working on it...' : `✨ Explain this to me like I'm ${profile?.ageGroup === '15-17' ? 'in high school' : `a ${profile?.occupation}`}`}
-                </Text>
+                <View style={styles.aiButtonContent}>
+                  <Ionicons name="sparkles" size={14} color={Colors.white} />
+                  <Text style={styles.aiButtonText}>
+                    {aiLoading ? 'Working on it...' : `Explain this to me like I'm ${profile?.ageGroup === '15-17' ? 'in high school' : `a ${profile?.occupation}`}`}
+                  </Text>
+                </View>
               </TouchableOpacity>
               <Text style={styles.aiNote}>
                 Powered by Alle-AI (Claude Opus)
@@ -201,9 +266,10 @@ export default function PolicyDetailScreen() {
             onPress={() => Linking.openURL(policy.source)}
             style={styles.sourceButton}
           >
-            <Text style={styles.sourceButtonText}>
-              🌐 View Original Source
-            </Text>
+            <View style={styles.sourceButtonContent}>
+              <Ionicons name="open-outline" size={14} color={Colors.primary} />
+              <Text style={styles.sourceButtonText}>View Original Source</Text>
+            </View>
           </TouchableOpacity>
         </Animated.View>
 
@@ -216,203 +282,267 @@ export default function PolicyDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.civic800,
+    backgroundColor: Colors.bg,
   },
   handleBar: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.headerGlass,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.civic600,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.border,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
   closeButton: {
     alignSelf: 'flex-end',
-    marginBottom: 8,
-    padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   closeText: {
-    color: Colors.civic500,
-    fontSize: 13,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.white,
-    lineHeight: 32,
-    marginBottom: 8,
+    ...Typography.h1,
+    fontFamily: Typography.fontFamily,
+    marginBottom: Spacing.sm,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   metaDate: {
-    fontSize: 12,
-    color: Colors.civic400,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
   },
   metaDot: {
-    fontSize: 12,
-    color: Colors.civic500,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
   },
   metaSource: {
-    fontSize: 12,
-    color: Colors.accentBlue,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textLink,
+    textDecorationLine: 'underline',
   },
   summary: {
-    fontSize: 14,
-    color: Colors.civic300,
-    lineHeight: 21,
-    marginBottom: 18,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    marginBottom: Spacing.xl,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   impactCard: {
-    backgroundColor: 'rgba(59,130,246,0.08)',
+    backgroundColor: Colors.primaryLight,
     borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.15)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   sectionTitle: {
-    fontSize: 14,
+    ...Typography.h2,
+    fontFamily: Typography.fontFamily,
+    fontSize: 18,
     fontWeight: '700',
-    color: Colors.accentBlue,
-    marginBottom: 8,
+    color: Colors.textPrimary,
+    marginBottom: 0,
   },
   impactText: {
-    fontSize: 14,
-    color: Colors.civic200,
-    lineHeight: 21,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
   },
   locationDivider: {
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(59,130,246,0.1)',
+    borderTopColor: Colors.surfaceAlt,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   locationText: {
-    fontSize: 13,
-    color: Colors.civic300,
-    lineHeight: 19,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textPrimary,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   tagText: {
+    fontFamily: Typography.fontFamily,
     fontSize: 12,
     fontWeight: '600',
   },
   deepDiveCard: {
-    backgroundColor: Colors.glassWhite,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    shadowColor: Colors.shadowColor,
+    shadowOpacity: 1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   deepDiveText: {
-    fontSize: 14,
-    color: Colors.civic300,
-    lineHeight: 22,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
   },
   aiCard: {
-    backgroundColor: 'rgba(139,92,246,0.06)',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.12)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   aiTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.accentPurple,
-    marginBottom: 10,
+    ...Typography.h2,
+    fontFamily: Typography.fontFamily,
+    fontSize: 18,
+    marginBottom: 0,
   },
   aiButton: {
-    backgroundColor: 'rgba(139,92,246,0.15)',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   aiButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.accentPurple,
+    ...Typography.button,
+    fontFamily: Typography.fontFamily,
+    color: Colors.white,
+  },
+  aiButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   aiResponseContainer: {
-    backgroundColor: 'rgba(139,92,246,0.1)',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   aiResponseText: {
-    fontSize: 14,
-    color: Colors.civic200,
-    lineHeight: 22,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textPrimary,
   },
   resetAi: {
-    marginTop: 10,
+    marginTop: Spacing.md,
     alignSelf: 'flex-end',
   },
   resetAiText: {
-    fontSize: 12,
-    color: Colors.accentPurple,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
+    color: Colors.error,
     fontWeight: '600',
   },
+  clearAiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   aiNote: {
-    fontSize: 11,
-    color: Colors.civic500,
+    ...Typography.caption,
+    fontFamily: Typography.fontFamily,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: Spacing.sm,
   },
   sourceButton: {
-    backgroundColor: Colors.glassWhite,
+    backgroundColor: Colors.bg,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    borderRadius: 14,
-    padding: 14,
+    borderColor: Colors.primary,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   sourceButtonText: {
-    color: Colors.civic300,
-    fontSize: 14,
-    fontWeight: '500',
+    ...Typography.button,
+    fontFamily: Typography.fontFamily,
+    color: Colors.primary,
+  },
+  sourceButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorEmoji: {
-    fontSize: 48,
+  errorIcon: {
     marginBottom: 12,
   },
   errorText: {
-    color: Colors.civic400,
-    fontSize: 16,
-    marginBottom: 16,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
   },
   backLink: {
-    color: Colors.accentBlue,
-    fontSize: 14,
+    ...Typography.body,
+    fontFamily: Typography.fontFamily,
+    color: Colors.textLink,
+    textDecorationLine: 'underline',
   },
 });

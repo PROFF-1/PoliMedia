@@ -104,10 +104,40 @@ function getAllPolicies() {
 function getAllArticles() {
   return db.prepare("SELECT * FROM articles ORDER BY date DESC").all();
 }
+/**
+ * Helper to get a single policy or article by ID
+ */
+function getPolicyById(id) {
+  // Check policies first
+  const policy = db.prepare("SELECT * FROM policies WHERE id = ?").get(id);
+  if (policy) {
+    return {
+      ...policy,
+      tags: JSON.parse(policy.tags || "[]"),
+      impacts: JSON.parse(policy.impacts || "{}"),
+      relevance: JSON.parse(policy.relevance || "{}")
+    };
+  }
+
+  // Check articles (Explore)
+  const article = db.prepare("SELECT * FROM articles WHERE id = ?").get(id);
+  if (article) {
+    return {
+      ...article,
+      category: "technology", // Default for articles
+      tags: [],
+      impacts: {},
+      relevance: {},
+      personalImpact: ""
+    };
+  }
+  return null;
+}
 
 module.exports = {
   savePolicy,
   saveArticle,
   getAllPolicies,
-  getAllArticles
+  getAllArticles,
+  getPolicyById
 };
